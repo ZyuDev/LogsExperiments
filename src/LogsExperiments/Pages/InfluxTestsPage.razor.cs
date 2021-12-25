@@ -3,6 +3,7 @@ using InfluxDB.Client.Api.Domain;
 using InfluxDB.Client.Writes;
 using LogsExperiments.Helpers;
 using LogsExperiments.Models;
+using LogsExperiments.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Configuration;
 using System;
@@ -12,13 +13,8 @@ using System.Threading.Tasks;
 
 namespace LogsExperiments.Pages
 {
-    public partial class InfluxTestsPage: ComponentBase
+    public partial class InfluxTestsPage : ComponentBase
     {
-        private string _token;
-        private string _host;
-        private InfluxDBClient _influx;
-        private string _bucket;
-        private string _org;
 
         private EventModel _eventModel;
 
@@ -28,17 +24,12 @@ namespace LogsExperiments.Pages
 
         private List<string> _messagesSend;
 
+
         [Inject]
-        public IConfiguration Configuration { get; set; }
+        public IInfluxDbMetricService InfluxService { get; set; }
 
         protected override void OnInitialized()
         {
-            _token = Configuration["influx_token"];
-            _bucket = Configuration["influx_bucket"];
-            _org = Configuration["influx_org"];
-            _host = Configuration["influx_host"];
-
-            _influx = InfluxDBClientFactory.Create(_host, _token);
 
             _eventModel = new EventModel();
 
@@ -54,19 +45,17 @@ namespace LogsExperiments.Pages
         {
             var point = PointData.Measurement(_eventModel.EventName)
                 .Tag("name", _eventModel.ObjectName)
-                .Tag("usr",_eventModel.UserName)
+                .Tag("usr", _eventModel.UserName)
                 .Field("count", 1)
                 .Timestamp(DateTime.UtcNow, WritePrecision.Ns);
 
+            InfluxService.WritePointAsync(point).ConfigureAwait(false);
 
-            using (var writeApi = _influx.GetWriteApi())
-            {
-                writeApi.WritePoint(_bucket, _org, point);
-                
-            }
 
             var message = $"{DateTime.Now}: {_eventModel}";
             _messagesSend.Add(message);
         }
+
+      
     }
 }
